@@ -78,7 +78,7 @@ cp .env.example .env
 Open `.env` and configure your settings:
 ```env
 PORT=3000
-NEWS_API_KEY=d14de6e9055d4c42b9e869993fb3a88b
+NEWS_API_KEY= newsapi.org API KEY
 NODE_ENV=development
 ```
 *(Note: A valid NewsAPI.org key is provided above for immediate testing. If left blank, the application automatically falls back to live international RSS wire feeds.)*
