@@ -1,0 +1,7 @@
+node_modules/
+.env
+fluentfeed.db
+fluentfeed.db-journal
+fluentfeed.db-wal
+fluentfeed.db-shm
+.DS_Store
