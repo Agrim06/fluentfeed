@@ -1,6 +1,6 @@
 const state = {
   dates: [],
-  selectedDate: null,
+  selectedDate: 'All',
   selectedCategory: 'All',
   selectedDifficulty: 'All',
   searchQuery: '',
@@ -59,8 +59,6 @@ const dom = {
   nextQuestionBtn: document.getElementById('nextQuestionBtn'),
   submitQuizBtn: document.getElementById('submitQuizBtn'),
   
-  resultsHeader: document.getElementById('resultsHeader'),
-  resultsIcon: document.getElementById('resultsIcon'),
   resultsHeading: document.getElementById('resultsHeading'),
   resultsScoreNumber: document.getElementById('resultsScoreNumber'),
   resultsScorePercent: document.getElementById('resultsScorePercent'),
@@ -74,6 +72,7 @@ const dom = {
 };
 
 function showToast(message) {
+  if (!dom.toast || !dom.toastMessage) return;
   dom.toastMessage.textContent = message;
   dom.toast.classList.remove('hidden');
   setTimeout(() => {
@@ -83,7 +82,7 @@ function showToast(message) {
 
 function switchView(viewName) {
   window.scrollTo({ top: 0, behavior: 'smooth' });
-  dom.readingProgressBar.style.width = '0%';
+  if (dom.readingProgressBar) dom.readingProgressBar.style.width = '0%';
   
   dom.dashboardView.classList.remove('active');
   dom.readingView.classList.remove('active');
@@ -106,8 +105,8 @@ async function loadStats() {
     const res = await fetch('/api/stats');
     if (res.ok) {
       const data = await res.json();
-      dom.statQuizzes.textContent = `${data.quizzesTaken} Quizzes Solved`;
-      dom.statAvgScore.textContent = `Avg: ${data.averageScorePercentage}%`;
+      if (dom.statQuizzes) dom.statQuizzes.textContent = data.quizzesTaken;
+      if (dom.statAvgScore) dom.statAvgScore.textContent = `${data.averageScorePercentage}%`;
     }
   } catch (err) {
     console.error(err);
@@ -133,9 +132,6 @@ async function loadDates() {
     if (res.ok) {
       const data = await res.json();
       state.dates = data.dates || [];
-      if (state.dates.length > 0 && !state.selectedDate) {
-        state.selectedDate = state.dates[0];
-      }
       renderDateChips();
     }
   } catch (err) {
@@ -146,6 +142,19 @@ async function loadDates() {
 function renderDateChips() {
   dom.dateChipsContainer.innerHTML = '';
   
+  const allChip = document.createElement('div');
+  allChip.className = `date-chip ${state.selectedDate === 'All' ? 'active' : ''}`;
+  allChip.innerHTML = `
+    <span class="date-chip-day">Past 5 Days</span>
+    <span class="date-chip-date">All Dates</span>
+  `;
+  allChip.addEventListener('click', () => {
+    state.selectedDate = 'All';
+    renderDateChips();
+    loadNews();
+  });
+  dom.dateChipsContainer.appendChild(allChip);
+
   state.dates.forEach(dateStr => {
     const { dayLabel, dateFormatted } = formatDateDisplay(dateStr);
     const chip = document.createElement('div');
@@ -165,8 +174,8 @@ function renderDateChips() {
 
 async function loadNews() {
   dom.articlesGrid.innerHTML = `
-    <div style="grid-column: 1/-1; text-align: center; padding: 2rem; color: var(--text-muted);">
-      Loading articles...
+    <div style="grid-column: 1/-1; text-align: center; padding: 3rem; color: var(--color-muted); font-size: 0.9rem;">
+      Loading stories...
     </div>
   `;
   dom.emptyState.classList.add('hidden');
@@ -176,7 +185,7 @@ async function loadNews() {
     if (state.selectedCategory && state.selectedCategory !== 'All') {
       params.append('category', state.selectedCategory);
     }
-    if (state.selectedDate) {
+    if (state.selectedDate && state.selectedDate !== 'All') {
       params.append('date', state.selectedDate);
     }
     if (state.selectedDifficulty && state.selectedDifficulty !== 'All') {
@@ -194,8 +203,8 @@ async function loadNews() {
     }
   } catch (err) {
     dom.articlesGrid.innerHTML = `
-      <div style="grid-column: 1/-1; text-align: center; padding: 2rem; color: var(--color-danger);">
-        Failed to load articles. Please check server connection.
+      <div style="grid-column: 1/-1; text-align: center; padding: 3rem; color: var(--color-incorrect); font-size: 0.9rem;">
+        Failed to load articles. Please verify server connection.
       </div>
     `;
   }
@@ -203,13 +212,18 @@ async function loadNews() {
 
 function renderArticles() {
   dom.articlesGrid.innerHTML = '';
-  dom.articlesCountBadge.textContent = `${state.articles.length} article${state.articles.length === 1 ? '' : 's'} found`;
+  dom.articlesCountBadge.textContent = `${state.articles.length} article${state.articles.length === 1 ? '' : 's'}`;
 
-  if (state.selectedDate) {
+  let titlePrefix = 'All Curated Stories';
+  if (state.selectedCategory !== 'All') {
+    titlePrefix = `${state.selectedCategory} Stories`;
+  }
+
+  if (state.selectedDate && state.selectedDate !== 'All') {
     const { dayLabel, dateFormatted } = formatDateDisplay(state.selectedDate);
-    dom.articlesViewTitle.textContent = `Showing Articles for ${dayLabel} (${dateFormatted})`;
+    dom.articlesViewTitle.textContent = `${titlePrefix} for ${dayLabel} (${dateFormatted})`;
   } else {
-    dom.articlesViewTitle.textContent = 'Showing All Curated Articles';
+    dom.articlesViewTitle.textContent = `${titlePrefix} (Past 5 Days)`;
   }
 
   if (state.articles.length === 0) {
@@ -238,18 +252,11 @@ function renderArticles() {
         <h3 class="card-title">${art.title}</h3>
         <p class="card-desc">${art.description}</p>
         <div class="card-footer">
-          <button class="btn btn-outline read-article-btn" data-id="${art.id}">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/>
-              <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
-            </svg>
-            Read Article
+          <button class="btn btn-secondary read-article-btn" data-id="${art.id}">
+            Read Story
           </button>
           <button class="btn btn-primary play-quiz-btn" data-id="${art.id}">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <polygon points="5 3 19 12 5 21 5 3"/>
-            </svg>
-            Play Quiz
+            Play Quiz (${art.quizCount || 4})
           </button>
         </div>
       </div>
@@ -271,9 +278,7 @@ async function openReader(articleId) {
     state.currentArticle = art;
 
     dom.readerCategory.textContent = art.category;
-    dom.readerCategory.className = `badge badge-${art.category}`;
     dom.readerDifficulty.textContent = art.difficulty;
-    dom.readerDifficulty.className = `badge badge-${art.difficulty}`;
     dom.readerReadTime.textContent = `${art.readingTime || 3} min read`;
     dom.readerWordCount.textContent = `${art.wordCount || 550} words`;
     dom.readerSource.textContent = art.source;
@@ -288,14 +293,14 @@ async function openReader(articleId) {
     const paragraphs = art.content.split('\n\n');
     dom.readerContent.innerHTML = paragraphs.map(p => {
       const formatted = p.replace(/\b([A-Za-z]{7,})\b/g, (match) => {
-        return `<span class="vocab-word" title="Click for vocabulary details">${match}</span>`;
+        return `<span class="vocab-word" title="Click for vocabulary context">${match}</span>`;
       });
       return `<p>${formatted}</p>`;
     }).join('');
 
     dom.readerContent.querySelectorAll('.vocab-word').forEach(el => {
       el.addEventListener('click', () => {
-        showToast(`Vocabulary: "${el.textContent}" - used in context for English comprehension.`);
+        showToast(`Vocabulary note: "${el.textContent}" — Key term used in context.`);
       });
     });
 
@@ -326,7 +331,6 @@ async function startQuiz(articleId) {
     state.quizUserAnswers = {};
 
     dom.quizCategoryBadge.textContent = data.category;
-    dom.quizCategoryBadge.className = `badge badge-${data.category}`;
     dom.quizArticleTitle.textContent = data.articleTitle;
 
     renderQuizQuestion();
@@ -351,7 +355,7 @@ function renderQuizQuestion() {
   dom.quizQuestionsContainer.innerHTML = `
     <div class="question-block active">
       <div class="question-counter">Question ${qNum} of ${total}</div>
-      <h2 class="question-text">${currentQ.question}</h2>
+      <h3 class="question-text">${currentQ.question}</h3>
       <div class="options-list">
         ${currentQ.options.map((opt, idx) => {
           const letter = String.fromCharCode(65 + idx);
@@ -416,13 +420,11 @@ function renderQuizResults(result) {
   dom.resultsScorePercent.textContent = `${result.percentage}%`;
 
   if (result.passed) {
-    dom.resultsIcon.textContent = '🏆';
-    dom.resultsHeading.textContent = 'Quiz Mastered!';
-    dom.resultsMessage.textContent = `Great work! You scored ${result.percentage}%. Your English reading comprehension was exceptional.`;
+    dom.resultsHeading.textContent = 'Quiz Mastered';
+    dom.resultsMessage.textContent = `You scored ${result.percentage}%. Your English reading comprehension and contextual vocabulary recall were accurate.`;
   } else {
-    dom.resultsIcon.textContent = '📚';
-    dom.resultsHeading.textContent = 'Practice Complete!';
-    dom.resultsMessage.textContent = `You scored ${result.percentage}%. Review the explanations below to strengthen your English vocabulary and comprehension.`;
+    dom.resultsHeading.textContent = 'Practice Completed';
+    dom.resultsMessage.textContent = `You scored ${result.percentage}%. Review the explanations below to reinforce your understanding of the text.`;
   }
 
   dom.resultsBreakdownList.innerHTML = result.results.map((r, idx) => {
@@ -430,11 +432,11 @@ function renderQuizResults(result) {
       <div class="breakdown-item ${r.isCorrect ? 'correct' : 'incorrect'}">
         <div class="breakdown-q-title">Q${idx + 1}: ${r.question}</div>
         <div class="breakdown-answers-row">
-          <div>Your Answer: <span class="user-ans-text">${r.userAnswer || 'No answer selected'}</span> ${r.isCorrect ? '✅' : '❌'}</div>
+          <div>Your Selection: <span class="user-ans-text">${r.userAnswer || 'No answer selected'}</span> ${r.isCorrect ? '✓' : '✗'}</div>
           ${!r.isCorrect ? `<div>Correct Answer: <span class="correct-ans-text">${r.correctAnswer}</span></div>` : ''}
         </div>
         <div class="breakdown-explanation">
-          <strong>Explanation:</strong> ${r.explanation}
+          <strong>Context & Explanation:</strong> ${r.explanation}
         </div>
       </div>
     `;
@@ -462,12 +464,32 @@ async function handleSyncNews() {
     showToast('Network error while syncing.');
   } finally {
     dom.fetchNewsBtn.disabled = false;
-    dom.fetchNewsBtnText.textContent = 'Sync News';
+    dom.fetchNewsBtnText.textContent = 'Sync Live News';
   }
 }
 
+function selectCategory(category) {
+  state.selectedCategory = category;
+  dom.categoryTabs.querySelectorAll('.tab-item').forEach(btn => {
+    if (btn.getAttribute('data-category') === category) {
+      btn.classList.add('active');
+    } else {
+      btn.classList.remove('active');
+    }
+  });
+  loadNews();
+}
+
 function setupEventListeners() {
-  dom.brandHomeBtn.addEventListener('click', () => switchView('dashboard'));
+  dom.brandHomeBtn.addEventListener('click', () => {
+    state.selectedCategory = 'All';
+    state.selectedDate = 'All';
+    dom.categoryTabs.querySelectorAll('.tab-item').forEach(b => b.classList.toggle('active', b.getAttribute('data-category') === 'All'));
+    renderDateChips();
+    loadNews();
+    switchView('dashboard');
+  });
+
   dom.backToDashBtn.addEventListener('click', () => switchView('dashboard'));
   dom.backToHomeFromResultsBtn.addEventListener('click', () => switchView('dashboard'));
 
@@ -505,13 +527,11 @@ function setupEventListeners() {
 
   dom.fetchNewsBtn.addEventListener('click', handleSyncNews);
 
-  dom.categoryTabs.querySelectorAll('.tab-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      dom.categoryTabs.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      state.selectedCategory = btn.getAttribute('data-category');
-      loadNews();
-    });
+  dom.categoryTabs.addEventListener('click', (e) => {
+    const tabBtn = e.target.closest('.tab-item');
+    if (!tabBtn) return;
+    const cat = tabBtn.getAttribute('data-category');
+    selectCategory(cat);
   });
 
   dom.difficultyFilter.addEventListener('change', (e) => {
@@ -526,13 +546,15 @@ function setupEventListeners() {
 
   dom.resetFiltersBtn.addEventListener('click', () => {
     state.selectedCategory = 'All';
+    state.selectedDate = 'All';
     state.selectedDifficulty = 'All';
     state.searchQuery = '';
     dom.searchInput.value = '';
     dom.difficultyFilter.value = 'All';
-    dom.categoryTabs.querySelectorAll('.tab-btn').forEach(b => {
+    dom.categoryTabs.querySelectorAll('.tab-item').forEach(b => {
       b.classList.toggle('active', b.getAttribute('data-category') === 'All');
     });
+    renderDateChips();
     loadNews();
   });
 }
