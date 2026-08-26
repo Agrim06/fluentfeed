@@ -238,12 +238,20 @@ function renderArticles() {
 
   dom.emptyState.classList.add('hidden');
 
+  const defaultImages = {
+    Technology: 'https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=800&q=80',
+    Business: 'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=800&q=80',
+    Sports: 'https://images.unsplash.com/photo-1461896836934-ffe607ba8211?auto=format&fit=crop&w=800&q=80',
+    World: 'https://images.unsplash.com/photo-1526778548025-fa2f459cd5c1?auto=format&fit=crop&w=800&q=80'
+  };
+
   state.articles.forEach(art => {
+    const fallback = defaultImages[art.category] || defaultImages.Technology;
     const card = document.createElement('div');
     card.className = 'article-card';
     card.innerHTML = `
       <div class="card-image-wrap">
-        <img src="${art.image || 'https://images.unsplash.com/photo-1504711434969-e33886168f5c?auto=format&fit=crop&w=800&q=80'}" alt="${art.title}" loading="lazy">
+        <img src="${art.image || fallback}" alt="${art.title}" loading="lazy" onerror="this.onerror=null; this.src='${fallback}';">
         <div class="card-floating-badges">
           <span class="badge badge-${art.category}">${art.category}</span>
           <span class="badge badge-${art.difficulty}">${art.difficulty}</span>
