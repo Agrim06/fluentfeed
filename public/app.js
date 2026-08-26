@@ -173,11 +173,16 @@ function renderDateChips() {
 }
 
 async function loadNews() {
-  dom.articlesGrid.innerHTML = `
-    <div style="grid-column: 1/-1; text-align: center; padding: 3rem; color: var(--color-muted); font-size: 0.9rem;">
-      Loading stories...
+  dom.articlesGrid.innerHTML = Array(4).fill(0).map(() => `
+    <div class="skeleton-card">
+      <div class="skeleton-image"></div>
+      <div class="skeleton-body">
+        <div class="skeleton-line short"></div>
+        <div class="skeleton-line long"></div>
+        <div class="skeleton-line medium"></div>
+      </div>
     </div>
-  `;
+  `).join('');
   dom.emptyState.classList.add('hidden');
 
   try {
