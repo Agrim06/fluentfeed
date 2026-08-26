@@ -298,7 +298,11 @@ async function openReader(articleId) {
     dom.readerDate.textContent = art.publishedAt;
     dom.readerTitle.textContent = art.title;
     dom.readerDesc.textContent = art.description;
-    dom.readerImage.src = art.image || 'https://images.unsplash.com/photo-1504711434969-e33886168f5c?auto=format&fit=crop&w=1200&q=80';
+    const readerFallback = defaultImages[art.category] || defaultImages.Technology;
+    dom.readerImage.onerror = () => {
+      dom.readerImage.src = readerFallback;
+    };
+    dom.readerImage.src = art.image || readerFallback;
     
     const quizCount = art.quizzes ? art.quizzes.length : 4;
     dom.readerQuizCount.textContent = quizCount;
